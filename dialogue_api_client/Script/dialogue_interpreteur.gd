@@ -1,19 +1,21 @@
 extends Node
 
 # --------------------------------------------------
-# DialogueManager.gd (Godot 4.4) — Connexion au choix
+# DialogueManager.gd (Godot 4.4) — version patchée v6
 # --------------------------------------------------
-# • Émet « conversation_ready(Conversation) » pour le front
-# • Se connecte à un signal externe « user_choice_selected(int) »
-#   qui véhicule l’ID du choix utilisateur.
-#   → Dès réception : traite le choix, met à jour les variables,
-#     lance la scène suivante et renvoie immédiatement le nouveau
-#     signal « conversation_ready » / « scene_finished ».
+# • Callback différés → plus de récursion.
+# • Texte + choix envoyés ensemble dans Conversation.
+# • Journalisation détaillée (`debug_logs`).
+# • ✅ FIX : fonctions manquantes (_on_line_ready etc.),
+#            choose(), fin de fichier, `emit_signal`.
 # --------------------------------------------------
 
-signal conversation_ready(conversation : Conversation)
+# ---------------------------------------------------------------------------
+#  SIGNALS
+# ---------------------------------------------------------------------------
+signal conversation_ready(conversation : Conversation)   # Flux principal
 
-# Signaux d’origine (toujours dispo pour debug / rétro-compat)
+# Signaux legacy (toujours déclenchés pour compat)
 signal line_ready(text : String)
 signal choices_ready(choices : Array)
 signal scene_finished(next_scene : String)
@@ -21,56 +23,79 @@ signal scene_finished(next_scene : String)
 # ---------------------------------------------------------------------------
 #  EXPORTS
 # ---------------------------------------------------------------------------
-@export var variables            : Dictionary = {}
-@export var scenes               : Dictionary = {}
-@export var current_scene        : String    = ""
-# Permet de brancher dans l’éditeur le node qui émettra
-# « user_choice_selected(index:int) ».
-@export var choice_signal_emitter: NodePath   = NodePath()
+@export var enable_auto_advance : bool       = false      # 🔄 Lecture auto (debug)
+@export var debug_logs          : bool       = true       # 📣 Activer les logs détaillés
+@export var variables           : Dictionary = {}
+@export var scenes              : Dictionary = {}
+@export var current_scene       : String     = ""
+# Node qui émettra le signal "choice(int)"
+@export var choice_signal_emitter : NodePath = NodePath()
 
 # ---------------------------------------------------------------------------
 #  INTERNES
 # ---------------------------------------------------------------------------
-var scene_lines    : Array[String] = []
+var scene_lines    : Array[String] = []    # Dialogue courant
 var current_index  : int           = 0
 var current_choices: Array         = []
 
 # ---------------------------------------------------------------------------
-#  READY
-# ---------------------------------------------------------------------------
-func _ready() -> void:
-	parse_file("res://dialogue_api_client/dialogue_test.txt")
+#  OUTILS LOG ---------------------------------------------------------------
+func _log(msg:String, cat:String="INFO") -> void:
+	if debug_logs:
+		print("[DM][%s] %s" % [cat, msg])
 
-	# Connexion au signal externe de choix utilisateur
+# ---------------------------------------------------------------------------
+#  READY --------------------------------------------------------------------
+func _ready() -> void:
+	_log("Initialisation DialogueManager", "BOOT")
+
+	parse_file("res://dialogue_api_client/dialogue_test.txt")
 	_connect_choice_signal()
 
-	# Debug (à retirer en production)
-	line_ready.connect(_on_line_ready)
-	choices_ready.connect(_on_choices_ready)
-	scene_finished.connect(_on_scene_finished)
+	if enable_auto_advance:
+		line_ready.connect(_on_line_ready)
+		choices_ready.connect(_on_choices_ready)
+		scene_finished.connect(_on_scene_finished)
+		_log("Auto-advance activé", "BOOT")
 
 	run_scene("intro")
 
 func _connect_choice_signal() -> void:
 	if choice_signal_emitter == NodePath():
+		_log("Pas de choice_signal_emitter défini", "WARN")
 		return
 	var emitter := get_node(choice_signal_emitter)
-	if emitter and emitter.has_signal("user_choice_selected"):
-		emitter.connect("user_choice_selected", Callable(self, "_on_user_choice_selected"))
+	if emitter and emitter.has_signal("choice"):
+		emitter.connect("choice", Callable(self, "_on_user_choice_selected"))
+		_log("Connecté au signal choice de %s" % emitter.name, "BOOT")
+	else:
+		_log("Le nœud %s n’a pas de signal 'choice'" % emitter, "ERROR")
 
 func _on_user_choice_selected(index : int) -> void:
-	choose(index)   # Wrapper qui gère tout le flux
+	_log("Choix UI reçu → index %d" % index, "INPUT")
+	choose(index)
 
 # ---------------------------------------------------------------------------
-#  Chargement du fichier Ink-like
-# ---------------------------------------------------------------------------
+#  PARSING ------------------------------------------------------------------
 func parse_file(path : String) -> void:
+	_log("Parsing du fichier %s" % path, "PARSE")
 	var file := FileAccess.open(path, FileAccess.READ)
+	if not file:
+		push_error("Failed to open dialogue file: %s" % path)
+		return
+
 	var lines := file.get_as_text().split("\n")
 	var current_block := ""
 
 	for raw_line in lines:
 		var line := raw_line.strip_edges()
+
+		# ------------- ⬇️ PATCH : on saute les lignes vides
+		if line == "":
+			continue
+		# ------------- ⬆️ PATCH
+
+		# --------- Variable globale
 		if line.begins_with("VAR "):
 			var parts := line.substr(4).split("=", false)
 			if parts.size() == 2:
@@ -79,64 +104,70 @@ func parse_file(path : String) -> void:
 				if value_str.begins_with("\"") and value_str.ends_with("\""):
 					value_str = value_str.substr(1, value_str.length() - 2)
 				variables[name] = _parse_value(value_str)
+				_log("VAR %s = %s" % [name, variables[name]], "PARSE")
+
+		# --------- Nouveau bloc === scene ===
 		elif line.begins_with("===") and line.ends_with("==="):
 			current_block = line.substr(3, line.length() - 6).strip_edges()
-			scenes[current_block] = []
+			scenes[current_block] = [] as Array[String]
+			_log("Scene détectée: %s" % current_block, "PARSE")
+
+		# --------- Ligne de dialogue
 		elif current_block != "":
 			scenes[current_block].append(line)
+
 
 func _parse_value(value : String):
 	return float(value) if value.is_valid_float() else value
 
 # ---------------------------------------------------------------------------
-#  Contrôle des scènes
-# ---------------------------------------------------------------------------
+#  CONTRÔLE DES SCÈNES ------------------------------------------------------
 func run_scene(scene_name : String) -> void:
+	_log("Run scene → %s" % scene_name, "FLOW")
 	current_scene  = scene_name
-	scene_lines    = scenes.get(scene_name, [])
+	scene_lines    = (scenes.get(scene_name, []) as Array[String])
 	current_index  = 0
 	_advance_scene()
 
-# API publique pour avancer sans choix (clic « suivant », etc.)
 func advance_scene() -> void:
 	_advance_scene()
 
 # ---------------------------------------------------------------------------
-#  Boucle principale — lit jusqu’à devoir attendre le front
-# ---------------------------------------------------------------------------
+#  BOUCLE PRINCIPALE --------------------------------------------------------
 func _advance_scene() -> void:
+	_log("_advance_scene index=%d/%d" % [current_index, scene_lines.size()], "FLOW")
 	while current_index < scene_lines.size():
 		var line := scene_lines[current_index]
+		_log("Analyse ligne: %s" % line, "FLOW")
 
-		# --------- Bloc de CHOIX "* [ ..."
 		if line.begins_with("* ["):
-			_collect_choices()
-			return   # On attend le signal user_choice_selected
-
-		# --------- Ligne code « ~ »
+			_collect_choices("")
+			return
 		elif line.begins_with("~"):
 			_process_line(line)
 			current_index += 1
-			continue  # Pas d’affichage, on boucle
-
-		# --------- Jump « -> scene_name »
+			continue
 		elif line.begins_with("->"):
 			var next := line.substr(2).strip_edges()
+			_log("Jump vers %s" % next, "FLOW")
 			emit_signal("scene_finished", next)
 			return
-
-		# --------- Dialogue standard
 		else:
 			var display_text := _interpolate_text(line)
-			_emit_conversation(display_text, [])
-			emit_signal("line_ready", display_text)  # legacy
-			current_index += 1
-			return  # On attend confirmation front
+			if current_index + 1 < scene_lines.size() and scene_lines[current_index + 1].begins_with("* ["):
+				current_index += 1
+				_collect_choices(display_text)
+				return
+			else:
+				_emit_conversation(display_text, [])
+				emit_signal("line_ready", display_text)
+				current_index += 1
+				return
 
 # ---------------------------------------------------------------------------
-#  Collecte des choix + signal agrégé
-# ---------------------------------------------------------------------------
-func _collect_choices() -> void:
+#  COLLECTE DES CHOIX -------------------------------------------------------
+func _collect_choices(dialogue_text : String) -> void:
+	_log("Collecte des choix…", "CHOICE")
 	current_choices = []
 
 	while current_index < scene_lines.size() and scene_lines[current_index].begins_with("* ["):
@@ -144,9 +175,9 @@ func _collect_choices() -> void:
 		var option_lines : Array[String] = []
 		current_index += 1
 
-		while current_index < scene_lines.size() and \
-				!scene_lines[current_index].begins_with("* [") and \
-				!scene_lines[current_index].begins_with("->"):
+		while current_index < scene_lines.size() and (
+			!scene_lines[current_index].begins_with("* [") and
+			!scene_lines[current_index].begins_with("->")):
 			option_lines.append(scene_lines[current_index])
 			current_index += 1
 
@@ -160,13 +191,13 @@ func _collect_choices() -> void:
 			"lines" : option_lines,
 			"next"  : next_scene
 		})
+		_log("Ajout choix: %s → %s" % [choice_text, next_scene], "CHOICE")
 
-	_emit_conversation("", current_choices)
-	emit_signal("choices_ready", current_choices)  # legacy
+	_emit_conversation(dialogue_text, current_choices)
+	emit_signal("choices_ready", current_choices)
 
 # ---------------------------------------------------------------------------
-#  Variables / expressions / interpolation
-# ---------------------------------------------------------------------------
+#  VARIABLES / EXPRESSIONS --------------------------------------------------
 func _process_line(line : String) -> void:
 	var expr := line.substr(1).strip_edges()
 	var parts := expr.split("=", false)
@@ -174,6 +205,7 @@ func _process_line(line : String) -> void:
 		var var_name := parts[0].strip_edges()
 		var rhs      := parts[1].strip_edges()
 		variables[var_name] = _evaluate_expression(rhs)
+		_log("Var set: %s = %s" % [var_name, variables[var_name]], "VAR")
 
 func _evaluate_expression(expr : String):
 	var tokens := expr.split(" ")
@@ -196,12 +228,11 @@ func _interpolate_text(text : String) -> String:
 	return text
 
 # ---------------------------------------------------------------------------
-#  Construction / émission Conversation
-# ---------------------------------------------------------------------------
+#  EMISSION Conversation ----------------------------------------------------
 func _emit_conversation(text : String, choices : Array) -> void:
 	var conv := Conversation.new()
 	conv.txt  = text
-	conv.choix = []
+	conv.choix = [] as Array[Choice]
 
 	for i in range(choices.size()):
 		var c := Choice.new()
@@ -209,30 +240,29 @@ func _emit_conversation(text : String, choices : Array) -> void:
 		c.txt = choices[i]["text"]
 		conv.choix.append(c)
 
+	_log("Emit Conversation: '%s' (%d choix)" % [text, conv.choix.size()], "EMIT")
 	emit_signal("conversation_ready", conv)
 
 # ---------------------------------------------------------------------------
-#  Choix (interne ou via signal)
-# ---------------------------------------------------------------------------
+#  CHOIX UTILISATEUR --------------------------------------------------------
 func choose(index : int) -> void:
+	_log("choose(%d)" % index, "INPUT")
 	if index >= 0 and index < current_choices.size():
 		for action in current_choices[index]["lines"]:
 			_process_line(action)
 		run_scene(current_choices[index]["next"])
+	else:
+		_log("Index choix invalide: %d" % index, "ERROR")
 
 # ---------------------------------------------------------------------------
-#  DEBUG auto-advance
-# ---------------------------------------------------------------------------
+#  DEBUG AUTO-ADVANCE -------------------------------------------------------
 func _on_line_ready(text : String) -> void:
-	print("[LINE] ", text)
-	_advance_scene()
+	_log("Auto line_ready", "AUTO")
+	call_deferred("_advance_scene")
 
 func _on_choices_ready(choices : Array) -> void:
-	print("[CHOICES]")
-	for i in range(choices.size()):
-		print(str(i + 1) + ". " + choices[i]["text"])
-	choose(0)
+	_log("Auto choices_ready (pick 0)", "AUTO")
+	call_deferred("choose", 0)
 
 func _on_scene_finished(next_scene : String) -> void:
-	print("[SCENE FINISHED] → ", next_scene)
-	run_scene(next_scene)
+	pass

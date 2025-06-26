@@ -1,16 +1,16 @@
 extends CanvasLayer
 class_name DialogueWindow
 @export var conv_dict: Conversation
-@onready var ChoiceButtonScene := preload("res://prefabs/button_choix_prefab.tscn")
+@export var ChoiceButtonScene : PackedScene
+@export var choice_box: VBoxContainer
+@export var text_box: RichTextLabel
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
+	pass
 	if conv_dict:
 		display_conversation(conv_dict)
 
-
-@onready var choice_box: VBoxContainer = $VBoxContainer2/VBoxContainer/HBoxContainer
-@onready var text_box: RichTextLabel = $VBoxContainer2/VBoxContainer/RichTextLabel
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta: float) -> void:
@@ -19,10 +19,12 @@ func _process(delta: float) -> void:
 # 🔄 Set a new conversation (call from parent)
 func set_conversation(new_conv: Conversation) -> void:
 	conv_dict = new_conv
+	print(new_conv)
 	display_conversation(conv_dict)
 
 # 💬 Display or update UI (to be implemented)
 func display_conversation(convo: Conversation) -> void:
+	print(text_box)
 	# Set the main dialogue text
 	text_box.text = convo.txt
 

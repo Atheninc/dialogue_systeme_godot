@@ -5,25 +5,25 @@ VAR courage = 0
 Bonjour, {nom}. Tu te tiens devant deux chemins.
 
 * [Prendre le sentier sombre]
-    Tu avances prudemment dans l'obscurité.
-    ~ courage = courage + 1
-    -> grotte
+	Tu avances prudemment dans l'obscurité.
+	~ courage = courage + 1
+	-> grotte
 
 * [Prendre le sentier lumineux]
-    Le soleil te réchauffe pendant ta marche.
-    -> village
+	Le soleil te réchauffe pendant ta marche.
+	-> village
 
 === grotte ===
 Tu arrives à une grotte. Une voix te murmure : "Fais demi-tour..."
 
 * [Entrer dans la grotte]
-    ~ courage = courage + 1
-    Tu entres malgré la peur.
-    -> fin_grotte
+	~ courage = courage + 1
+	Tu entres malgré la peur.
+	-> fin_grotte
 
 * [Revenir sur tes pas]
-    Tu préfères ne pas prendre de risques.
-    -> village
+	Tu préfères ne pas prendre de risques.
+	-> village
 
 === village ===
 Tu rejoins un village accueillant. Les habitants te saluent.

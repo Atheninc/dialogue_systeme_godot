@@ -1,0 +1,70 @@
+[gd_scene load_steps=9 format=3 uid="uid://dol7h2qdrq7lq"]
+
+[ext_resource type="Script" uid="uid://pu4s3f1tcg74" path="res://window.gd" id="1_dudm6"]
+[ext_resource type="Script" uid="uid://drukt2ms4cblo" path="res://scripts/choice.gd" id="2_6ps63"]
+[ext_resource type="Script" uid="uid://bn64n81dqnugy" path="res://scripts/conversation.gd" id="3_g5w6b"]
+[ext_resource type="PackedScene" uid="uid://cc1b7i3kyadyn" path="res://prefabs/button_choix_prefab.tscn" id="4_ucd7i"]
+[ext_resource type="PackedScene" uid="uid://cm7fls7aris2t" path="res://dialogue_api_client/dialogue_api_debug.tscn" id="5_6ps63"]
+
+[sub_resource type="Resource" id="Resource_ifklg"]
+script = ExtResource("2_6ps63")
+id = 0
+txt = "Weeeesh"
+metadata/_custom_type_script = "uid://drukt2ms4cblo"
+
+[sub_resource type="Resource" id="Resource_ygqcu"]
+script = ExtResource("2_6ps63")
+id = 1
+txt = "Grosse merde"
+metadata/_custom_type_script = "uid://drukt2ms4cblo"
+
+[sub_resource type="Resource" id="Resource_cv8km"]
+script = ExtResource("3_g5w6b")
+txt = "Salut connard!"
+choix = Array[ExtResource("2_6ps63")]([SubResource("Resource_ifklg"), SubResource("Resource_ygqcu")])
+metadata/_custom_type_script = "uid://bn64n81dqnugy"
+
+[node name="Window" type="CanvasLayer" node_paths=PackedStringArray("choice_box", "text_box")]
+script = ExtResource("1_dudm6")
+conv_dict = SubResource("Resource_cv8km")
+ChoiceButtonScene = ExtResource("4_ucd7i")
+choice_box = NodePath("VBoxContainer2/VBoxContainer/HBoxContainer")
+text_box = NodePath("VBoxContainer2/VBoxContainer/RichTextLabel")
+
+[node name="VBoxContainer2" type="VBoxContainer" parent="."]
+offset_top = 379.0
+offset_right = 1157.0
+offset_bottom = 654.0
+
+[node name="RichTextLabel" type="RichTextLabel" parent="VBoxContainer2"]
+layout_mode = 2
+text = "NOM"
+fit_content = true
+scroll_active = false
+
+[node name="VBoxContainer" type="VBoxContainer" parent="VBoxContainer2"]
+layout_mode = 2
+
+[node name="RichTextLabel" type="RichTextLabel" parent="VBoxContainer2/VBoxContainer"]
+custom_minimum_size = Vector2(100, 100)
+layout_mode = 2
+text = "CECI EST DU TEXTE? MANGE
+BLalablablabla
+
+"
+horizontal_alignment = 1
+
+[node name="HBoxContainer" type="VBoxContainer" parent="VBoxContainer2/VBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+alignment = 1
+
+[node name="Button" parent="VBoxContainer2/VBoxContainer/HBoxContainer" instance=ExtResource("4_ucd7i")]
+layout_mode = 2
+text = "DEBUG"
+
+[node name="Node" parent="." instance=ExtResource("5_6ps63")]
+choice_signal_emitter = NodePath("..")
+
+[connection signal="conversation_ready" from="Node" to="." method="set_conversation"]
