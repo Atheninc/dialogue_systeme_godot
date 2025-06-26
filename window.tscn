@@ -1,8 +1,31 @@
-[gd_scene load_steps=2 format=3 uid="uid://by522hqmlv5nv"]
+[gd_scene load_steps=8 format=3 uid="uid://cubuhvcfjnagr"]
 
-[ext_resource type="PackedScene" uid="uid://cc1b7i3kyadyn" path="res://prefabs/button_choix_prefab.tscn" id="1_mvsta"]
+[ext_resource type="Script" uid="uid://pu4s3f1tcg74" path="res://window.gd" id="1_mvsta"]
+[ext_resource type="PackedScene" uid="uid://cc1b7i3kyadyn" path="res://prefabs/button_choix_prefab.tscn" id="2_hjewq"]
+[ext_resource type="Script" uid="uid://drukt2ms4cblo" path="res://scripts/choice.gd" id="2_srjdr"]
+[ext_resource type="Script" uid="uid://bn64n81dqnugy" path="res://scripts/conversation.gd" id="3_4vd1n"]
+
+[sub_resource type="Resource" id="Resource_ifklg"]
+script = ExtResource("2_srjdr")
+id = 0
+txt = "Weeeesh"
+metadata/_custom_type_script = "uid://drukt2ms4cblo"
+
+[sub_resource type="Resource" id="Resource_ygqcu"]
+script = ExtResource("2_srjdr")
+id = 1
+txt = "Grosse merde"
+metadata/_custom_type_script = "uid://drukt2ms4cblo"
+
+[sub_resource type="Resource" id="Resource_cv8km"]
+script = ExtResource("3_4vd1n")
+txt = "Salut connard!"
+choix = Array[ExtResource("2_srjdr")]([SubResource("Resource_ifklg"), SubResource("Resource_ygqcu")])
+metadata/_custom_type_script = "uid://bn64n81dqnugy"
 
 [node name="Window" type="CanvasLayer"]
+script = ExtResource("1_mvsta")
+conv_dict = SubResource("Resource_cv8km")
 
 [node name="VBoxContainer2" type="VBoxContainer" parent="."]
 offset_top = 379.0
@@ -33,28 +56,6 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 alignment = 1
 
-[node name="Button" parent="VBoxContainer2/VBoxContainer/HBoxContainer" instance=ExtResource("1_mvsta")]
+[node name="Button" parent="VBoxContainer2/VBoxContainer/HBoxContainer" instance=ExtResource("2_hjewq")]
 layout_mode = 2
-
-[node name="Button2" type="Button" parent="VBoxContainer2/VBoxContainer/HBoxContainer"]
-visible = false
-layout_mode = 2
-text = "BUTTON2"
-
-[node name="Button3" type="Button" parent="VBoxContainer2/VBoxContainer/HBoxContainer"]
-visible = false
-layout_mode = 2
-text = "BUTTON3"
-
-[node name="Button4" type="Button" parent="VBoxContainer2/VBoxContainer/HBoxContainer"]
-visible = false
-layout_mode = 2
-text = "BUTTON4"
-
-[node name="Button5" type="Button" parent="VBoxContainer2/VBoxContainer/HBoxContainer"]
-layout_mode = 2
-text = "button5"
-
-[node name="Button6" type="Button" parent="VBoxContainer2/VBoxContainer/HBoxContainer"]
-layout_mode = 2
-text = "button6"
+text = "DEBUG"
