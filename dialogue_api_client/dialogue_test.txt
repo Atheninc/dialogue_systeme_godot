@@ -1,0 +1,39 @@
+VAR nom = "Héros"
+VAR courage = 0
+
+=== intro ===
+Bonjour, {nom}. Tu te tiens devant deux chemins.
+
+* [Prendre le sentier sombre]
+    Tu avances prudemment dans l'obscurité.
+    ~ courage = courage + 1
+    -> grotte
+
+* [Prendre le sentier lumineux]
+    Le soleil te réchauffe pendant ta marche.
+    -> village
+
+=== grotte ===
+Tu arrives à une grotte. Une voix te murmure : "Fais demi-tour..."
+
+* [Entrer dans la grotte]
+    ~ courage = courage + 1
+    Tu entres malgré la peur.
+    -> fin_grotte
+
+* [Revenir sur tes pas]
+    Tu préfères ne pas prendre de risques.
+    -> village
+
+=== village ===
+Tu rejoins un village accueillant. Les habitants te saluent.
+
+-> fin
+
+=== fin_grotte ===
+Tu découvres un ancien trésor caché. Ton courage a été récompensé !
+
+-> fin
+
+=== fin ===
+Merci d’avoir joué, {nom}. Ton courage final est : {courage}.

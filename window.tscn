@@ -1,4 +1,6 @@
-[gd_scene format=3 uid="uid://cubuhvcfjnagr"]
+[gd_scene load_steps=2 format=3 uid="uid://by522hqmlv5nv"]
+
+[ext_resource type="PackedScene" uid="uid://cc1b7i3kyadyn" path="res://prefabs/button_choix_prefab.tscn" id="1_mvsta"]
 
 [node name="Window" type="CanvasLayer"]
 
@@ -31,10 +33,8 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 alignment = 1
 
-[node name="Button" type="Button" parent="VBoxContainer2/VBoxContainer/HBoxContainer"]
-visible = false
+[node name="Button" parent="VBoxContainer2/VBoxContainer/HBoxContainer" instance=ExtResource("1_mvsta")]
 layout_mode = 2
-text = "BUTTON1"
 
 [node name="Button2" type="Button" parent="VBoxContainer2/VBoxContainer/HBoxContainer"]
 visible = false

@@ -1,0 +1,27 @@
+[gd_scene load_steps=7 format=3 uid="uid://dkfu3lcp3cd2u"]
+
+[ext_resource type="Script" uid="uid://dbeub7p8h16g6" path="res://data_normalisation.gd" id="1_nqmt8"]
+[ext_resource type="Script" uid="uid://drukt2ms4cblo" path="res://scripts/choice.gd" id="2_oaab8"]
+[ext_resource type="Script" uid="uid://bn64n81dqnugy" path="res://scripts/conversation.gd" id="3_urit7"]
+
+[sub_resource type="Resource" id="Resource_tbgny"]
+script = ExtResource("2_oaab8")
+id = 1353
+txt = "je t'emérde, habitant de ce village de merde"
+metadata/_custom_type_script = "uid://drukt2ms4cblo"
+
+[sub_resource type="Resource" id="Resource_c8t6g"]
+script = ExtResource("2_oaab8")
+id = 313513
+txt = "Bonjours, habitant, meur? non? stp!"
+metadata/_custom_type_script = "uid://drukt2ms4cblo"
+
+[sub_resource type="Resource" id="Resource_1copv"]
+script = ExtResource("3_urit7")
+txt = "Bonjours {billy}"
+choix = Array[ExtResource("2_oaab8")]([SubResource("Resource_tbgny"), SubResource("Resource_c8t6g")])
+metadata/_custom_type_script = "uid://bn64n81dqnugy"
+
+[node name="Node" type="Node"]
+script = ExtResource("1_nqmt8")
+conv_dict = SubResource("Resource_1copv")

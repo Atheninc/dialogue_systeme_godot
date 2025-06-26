@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3 uid="uid://cm7fls7aris2t"]
+
+[ext_resource type="Script" uid="uid://ty8v14si7r7r" path="res://dialogue_api_client/Script/dialogue_interpreteur.gd" id="1_nlyg1"]
+
+[node name="Node" type="Node"]
+script = ExtResource("1_nlyg1")
+variables = null
+scenes = null
+current_scene = null
