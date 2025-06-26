@@ -31,6 +31,8 @@ signal scene_finished(next_scene : String)
 # Node qui émettra le signal "choice(int)"
 @export var choice_signal_emitter : NodePath = NodePath()
 
+
+@export var file_path : String
 # ---------------------------------------------------------------------------
 #  INTERNES
 # ---------------------------------------------------------------------------
@@ -49,7 +51,7 @@ func _log(msg:String, cat:String="INFO") -> void:
 func _ready() -> void:
 	_log("Initialisation DialogueManager", "BOOT")
 
-	parse_file("res://dialogue_api_client/dialogue_test.txt")
+	parse_file(file_path)
 	_connect_choice_signal()
 
 	if enable_auto_advance:
