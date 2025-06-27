@@ -19,6 +19,7 @@ signal conversation_ready(conversation : Conversation)   # Flux principal
 signal line_ready(text : String)
 signal choices_ready(choices : Array)
 signal scene_finished(next_scene : String)
+signal speak_description_scene(text : String)
 
 # ---------------------------------------------------------------------------
 #  EXPORTS
@@ -60,7 +61,7 @@ func _ready() -> void:
 		scene_finished.connect(_on_scene_finished)
 		_log("Auto-advance activé", "BOOT")
 
-	run_scene("intro")
+	run_scene("Intro")
 
 func _connect_choice_signal() -> void:
 	if choice_signal_emitter == NodePath():
@@ -89,12 +90,16 @@ func parse_file(path : String) -> void:
 	var lines := file.get_as_text().split("\n")
 	var current_block := ""
 
+	# -- PARSING ----------------------------------------------------------
 	for raw_line in lines:
 		var line := raw_line.strip_edges()
 
-		# ------------- ⬇️ PATCH : on saute les lignes vides
+		# On élimine les lignes vides uniquement quand on n’est PAS dans un bloc
 		if line == "":
+			if current_block != "":
+				scenes[current_block].append("")   # On garde le saut de ligne
 			continue
+
 		# ------------- ⬆️ PATCH
 
 		# --------- Variable globale
@@ -138,33 +143,66 @@ func advance_scene() -> void:
 #  BOUCLE PRINCIPALE --------------------------------------------------------
 func _advance_scene() -> void:
 	_log("_advance_scene index=%d/%d" % [current_index, scene_lines.size()], "FLOW")
+
 	while current_index < scene_lines.size():
+
+		# ── 1. IGNORER les lignes vides en tête de boucle
+		while current_index < scene_lines.size() and scene_lines[current_index] == "":
+			current_index += 1
+		if current_index >= scene_lines.size():
+			return
+
+		# ── 2. ANALYSE de la ligne courante
 		var line := scene_lines[current_index]
 		_log("Analyse ligne: %s" % line, "FLOW")
 
+		# ---------------- CHOIX DIRECTEMENT
 		if line.begins_with("* ["):
-			_collect_choices("")
+			_collect_choices("")               # aucun texte introductif
 			return
+
+		# ---------------- VARIABLE (~ var = …)
 		elif line.begins_with("~"):
 			_process_line(line)
 			current_index += 1
 			continue
+
+		# ---------------- SAUT DE SCÈNE (-> Cible)
 		elif line.begins_with("->"):
 			var next := line.substr(2).strip_edges()
 			_log("Jump vers %s" % next, "FLOW")
 			emit_signal("scene_finished", next)
 			return
+
+		# ---------------- NARRATION / DESCRIPTION
 		else:
-			var display_text := _interpolate_text(line)
-			if current_index + 1 < scene_lines.size() and scene_lines[current_index + 1].begins_with("* ["):
+			var block_lines : Array[String] = []
+
+			# ➜ On empile TOUTES les lignes de description (blancs compris)
+			while current_index < scene_lines.size():
+				var l := scene_lines[current_index]
+
+				# Arrêt dès qu’on atteint un marqueur spécial
+				if l.begins_with("* [") or l.begins_with("->") or l.begins_with("~"):
+					break
+
+				block_lines.append(l)      # garde les lignes telles quelles
 				current_index += 1
+
+			# On reconstruit le paragraphe avec \n
+			var display_text := _interpolate_text("\n".join(block_lines)).strip_edges()
+
+
+			# Juste après le bloc → un choix ?
+			if current_index < scene_lines.size() and scene_lines[current_index].begins_with("* ["):
 				_collect_choices(display_text)
 				return
 			else:
 				_emit_conversation(display_text, [])
 				emit_signal("line_ready", display_text)
-				current_index += 1
 				return
+
+
 
 # ---------------------------------------------------------------------------
 #  COLLECTE DES CHOIX -------------------------------------------------------
@@ -195,9 +233,41 @@ func _collect_choices(dialogue_text : String) -> void:
 		})
 		_log("Ajout choix: %s → %s" % [choice_text, next_scene], "CHOICE")
 
+	var txt_vocal = _format_oral(dialogue_text, current_choices)
+	print(txt_vocal)
+	#emit_signal("speak_description_scene", dialogue_text)
+	emit_signal("speak_description_scene", txt_vocal)
 	_emit_conversation(dialogue_text, current_choices)
 	emit_signal("choices_ready", current_choices)
+	
+# ---------------------------------------------------------------------------
+#  OUTILS – mise en forme orale --------------------------------------------
+func _format_oral(text : String, choices : Array) -> String:
+	var speech := text.strip_edges()   # on conserve les \n internes
 
+	if choices.size() > 0:
+		# Intro vide → pas de virgule en trop
+		if speech == "":
+			speech = "Tu peux "
+		else:
+			speech += ", tu peux "
+
+		for i in range(choices.size()):
+			speech += "« %s »" % choices[i]["text"]
+			if i < choices.size() - 2:
+				speech += ", "
+			elif i == choices.size() - 2:
+				speech += " ou "
+		speech += "."
+	else:
+		# Aucun choix : phrase normale ou simple suspension
+		speech = "…" if speech == "" else speech + "."
+
+	return speech
+
+
+
+#func vocaliser_le_text(text, )
 # ---------------------------------------------------------------------------
 #  VARIABLES / EXPRESSIONS --------------------------------------------------
 func _process_line(line : String) -> void:
